@@ -1,0 +1,13 @@
+{
+  "name": "spec-alpha",
+  "version": "0.0.0",
+  "description": "declarative specification library",
+  "main": "index.js",
+  "scripts": {},
+  "author": "digijan",
+  "license": "ISC",
+  "devDependencies": {},
+  "dependencies": {
+    "esprima": "^4.0.1"
+  }
+}
