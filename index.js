@@ -10,49 +10,51 @@
 
   function registerSpec(specName, defArgs) {
     registry[specName] = { predicates: [] }
-    registry[specName].string = parseDefArgs(specName, defArgs)
+    registry[specName].string = argsToSExpr(specName, defArgs)
     registry[specName].toString = function() { return registry[specName].string }
     return specName
   }
 
-  function reduceToSExp(acc, val) {
-    return `${acc}${toSExp(val)}`.replace(')(', '')
-  }
-
-  function toSExp(atom) {
-    switch(typeof atom) {
+  function toAtom(val) {
+    switch(typeof val) {
       case 'string':
-        return `(${atom.length}:${atom})`
+        return `${val.length}:${val}`
       case 'object':
-        if (Array.isArray(atom)) return atom.reduce(reduceToSExp, ``)
-        return objectToSExp(atom)
+        if (Array.isArray(val)) return val.map(toAtom)
+        return objectToAtoms(val)
       default:
         return ''
     }
   }
 
-  function objectToSExp(nested) {
-    var str = ''
+  function objectToAtoms(nested, keys, accumulated) {
+    var keys = keys || Object.keys(nested)
+    var key = keys.pop()
+    var str = `${accumulated || ''}(${toAtom(key)}`
 
-    for (key in nested) {
-      str = str + `(${key.length}:${key}${objectToSExp(nested[key])})`
+    if (typeof nested[key] === 'object') {
+      str = str + objectToAtoms(nested[key])
+    } else {
+      str = str + ')'
     }
 
-    return str.replace(/\)(\(.*)$/, '$1)')
+    if (keys.length === 0) return str + ')'
+
+    return objectToAtoms(nested, keys, str)
   }
 
-  function parseDefArgs(specName, defArgs) {
-    return defArgs.reduce(function(acc, val) {
+  function argsToSExpr(specName, defArgs) {
+    return `(${defArgs.reduce(function(acc, val) {
       if (typeof val === 'function') {
         registerPredicate(specName, val)
         return acc
       } else if (val.predicates) {
         val.predicates.forEach(predicate => registerPredicate(specName, predicate))
-        return acc + toSExp(val.string)
+        return acc + `${toAtom(val.string)}`
       } else {
-        return acc + toSExp(val)
+        return acc + `${toAtom(val)}`
       }
-    }, ``)
+    }, ``)})`
   }
 
   return {
@@ -64,7 +66,7 @@
       for (var i = 0; i < spec.predicates.length; i++) {
         if (!spec.predicates[i](value)) return null
       }
-      if (spec.toString().length && toSExp(value) !== spec.toString()) return null
+      if (spec.toString().length && toAtom(value) !== spec.toString()) return null
       return true
     },
     getSpec: function(name) {
