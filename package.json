@@ -6,7 +6,9 @@
   "scripts": {},
   "author": "digijan",
   "license": "ISC",
-  "devDependencies": {},
+  "devDependencies": {
+    "nearley": "^2.16.0"
+  },
   "dependencies": {
     "esprima": "^4.0.1"
   }

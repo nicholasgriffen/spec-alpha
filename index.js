@@ -29,17 +29,12 @@
     }
   })()
 
-  function parseSExpr(value, macro, sub) {
-    var hydrated = macro || {}
-    var target = sub || hydrated
-    var sExpr = /\(\d+\:(.(?!\()+)/
+  function parseSExpr(str, map) {
 
-    if (sExpr.test(value)) {
-      var key = value.match(sExpr)[1]
-      target[key] = {}
-      return parseSExpr(value.replace(sExpr, ''), hydrated, target[key])
-    }
-    return hydrated
+    var map = map || {}
+
+    map[str.substring(str[3], str[3] + +str[1])] = str[1]
+    return parseSExpr(str.substring(str[3] + +str[1]), map)
   }
 
   function hashPredicate(p) {
