@@ -1,17 +1,58 @@
 (function() {
-  var registry = {
-    getSpec: function(name) {
-    return registry[name]
-  }}
+  var registry = (function() {
+    var store = {
+      predicates: {}
+    }
+    return {
+      addSpec: function(name, defArgs) {
+        store[name] = {
+          predicates: [],
+          string: argsToSExpr(name, defArgs),
+          toString: function() { return store[name].string }
+        }
+      },
+      addPredicate: function(name, predicate) {
+        var regHash = hashPredicate(predicate)
+
+        store.predicates[regHash] = store.predicates[regHash] || predicate
+
+        if (store[name] && store[name].predicates && !store[name].predicates.includes(regHash)) {
+          store[name].predicates.push(regHash)
+        }
+      },
+      getSpec: function(name) {
+        return store[name]
+      },
+      getPredicate: function(name) {
+        return store.predicates[name]
+      }
+    }
+  })()
+
+  function parseSExpr(value, macro, sub) {
+    var hydrated = macro || {}
+    var target = sub || hydrated
+    var sExpr = /\(\d+\:(.(?!\()+)/
+
+    if (sExpr.test(value)) {
+      var key = value.match(sExpr)[1]
+      target[key] = {}
+      return parseSExpr(value.replace(sExpr, ''), hydrated, target[key])
+    }
+    return hydrated
+  }
+
+  function hashPredicate(p) {
+    return p.toString().split('').reduce(function(acc, val) { return acc + val.charCodeAt(0) } , 0)
+  }
 
   function registerPredicate(specName, predicate) {
-    registry[specName].predicates = registry[specName].predicates.concat(predicate)
+    registry.addPredicate(specName, predicate)
   }
 
   function registerSpec(specName, defArgs) {
-    registry[specName] = { predicates: [] }
-    registry[specName].string = argsToSExpr(specName, defArgs)
-    registry[specName].toString = function() { return registry[specName].string }
+    registry.addSpec(specName, defArgs)
+
     return specName
   }
 
@@ -63,10 +104,9 @@
     },
     valid: function(name, value) {
       var spec = registry.getSpec(name)
-      for (var i = 0; i < spec.predicates.length; i++) {
-        if (!spec.predicates[i](value)) return null
+      for (var predicate of spec.predicates) {
+        if (!registry.getPredicate(predicate)(value)) return null
       }
-      if (spec.toString().length && toAtom(value) !== spec.toString()) return null
       return true
     },
     getSpec: function(name) {
@@ -74,3 +114,5 @@
     },
   }
 })()
+
+'((1:z)(1:a(1:b(1:c)))(1:b)))'
