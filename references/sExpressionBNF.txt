@@ -1,0 +1,13 @@
+http://people.csail.mit.edu/rivest/Sexp.txt
+For canonical and basic transport:
+
+<sexpr>    	:: <string> | <list>
+<string>   	:: <display>? <simple-string> ;
+<simple-string>	:: <raw> ;
+<display>  	:: "[" <simple-string> "]" ;
+<raw>      	:: <decimal> ":" <bytes> ;
+<decimal>  	:: <decimal-digit>+ ;
+		-- decimal numbers should have no unnecessary leading zeros
+<bytes> 	-- any string of bytes, of the indicated length
+<list>     	:: "(" <sexp>* ")" ;
+<decimal-digit> :: "0" | ... | "9" ;

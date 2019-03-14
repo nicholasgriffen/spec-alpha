@@ -10,7 +10,6 @@ var grammar = {
     {"name": "string$ebnf$1", "symbols": ["display"], "postprocess": id},
     {"name": "string$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "string", "symbols": ["string$ebnf$1", "raw"], "postprocess":  data => {
-          console.log('string', data)
           if (data[0] && data[0].display) {
             var strObj = String(data[1])
             strObj.display = data[0].display
@@ -27,21 +26,24 @@ var grammar = {
     {"name": "raw", "symbols": ["raw$ebnf$1", {"literal":":"}, "raw$ebnf$2"], "postprocess": 
         function(data, location, reject) {
           if (data[2].length !== +data[0]) {
-            console.log(data, 'failed')
+            console.log('reject')
             return reject
           } else {
-            console.log(data, 'success')
+            console.log('pass')
             return data[2].join('')
           }
         }
         },
-    {"name": "list$ebnf$1", "symbols": ["list"], "postprocess": id},
+    {"name": "list$ebnf$1", "symbols": [{"literal":"("}], "postprocess": id},
     {"name": "list$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "list", "symbols": [{"literal":"("}, "sExpression", "list$ebnf$1", {"literal":")"}], "postprocess":  data => ({
-        expression: {
-          value: data[1],
-          subExpression: data[2]
-        }}) }
+    {"name": "list$ebnf$2", "symbols": []},
+    {"name": "list$ebnf$2", "symbols": ["list$ebnf$2", "sExpression"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "list$ebnf$3", "symbols": [{"literal":")"}], "postprocess": id},
+    {"name": "list$ebnf$3", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "list", "symbols": [{"literal":"("}, "list$ebnf$1", "sExpression", "list$ebnf$2", {"literal":")"}, "list$ebnf$3"], "postprocess":  data => {
+        return {
+          [data[2]]: data[3]
+        }} }
 ]
   , ParserStart: "sExpression"
 }

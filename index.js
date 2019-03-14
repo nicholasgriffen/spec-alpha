@@ -1,17 +1,25 @@
 (function() {
-  var registry = (function() {
+    var parseApi = require('./parser/api')
+    var registry = (function() {
     var store = {
       predicates: {}
     }
     return {
       addSpec: function(name, defArgs) {
+        var parsedArgs = parseArgs(defArgs)
+
         store[name] = {
           predicates: [],
-          string: argsToSExpr(name, defArgs),
-          toString: function() { return store[name].string }
+          sExpression: argsToSExpr(parsedArgs.notPredicates),
+          toString: function() { return store[name].sExpression }
         }
+
+        parsedArgs.predicates.forEach(predicate => registerPredicate(name, predicate))
       },
       addPredicate: function(name, predicate) {
+        if (+predicate) {
+          predicate = store.predicates[predicate]
+        }
         var regHash = hashPredicate(predicate)
 
         store.predicates[regHash] = store.predicates[regHash] || predicate
@@ -28,14 +36,6 @@
       }
     }
   })()
-
-  function parseSExpr(str, map) {
-
-    var map = map || {}
-
-    map[str.substring(str[3], str[3] + +str[1])] = str[1]
-    return parseSExpr(str.substring(str[3] + +str[1]), map)
-  }
 
   function hashPredicate(p) {
     return p.toString().split('').reduce(function(acc, val) { return acc + val.charCodeAt(0) } , 0)
@@ -56,8 +56,9 @@
       case 'string':
         return `${val.length}:${val}`
       case 'object':
-        if (Array.isArray(val)) return val.map(toAtom)
-        return objectToAtoms(val)
+        if (Array.isArray(val)) return argsToSExpr(val)
+        if (val.sExpression) return val.sExpression.substring(1, val.sExpression.length - 1)
+        return objectToAtoms(val).replace(/\)$/m, '')
       default:
         return ''
     }
@@ -69,7 +70,7 @@
     var str = `${accumulated || ''}(${toAtom(key)}`
 
     if (typeof nested[key] === 'object') {
-      str = str + objectToAtoms(nested[key])
+      str = str + toAtom(nested[key])
     } else {
       str = str + ')'
     }
@@ -79,18 +80,25 @@
     return objectToAtoms(nested, keys, str)
   }
 
-  function argsToSExpr(specName, defArgs) {
-    return `(${defArgs.reduce(function(acc, val) {
-      if (typeof val === 'function') {
-        registerPredicate(specName, val)
-        return acc
-      } else if (val.predicates) {
-        val.predicates.forEach(predicate => registerPredicate(specName, predicate))
-        return acc + `${toAtom(val.string)}`
-      } else {
+  function argsToSExpr(args) {
+    return `(${args.reduce(function(acc, val) {
         return acc + `${toAtom(val)}`
+      }, ``)})`
+  }
+  function parseArgs(args) {
+    var predicates = []
+    var notPredicates = []
+    args.forEach(arg => {
+      if (typeof arg === 'function') {
+        predicates = predicates.concat(arg)
+      } else if (arg && arg.predicates) {
+        predicates = predicates.concat(arg.predicates)
+        notPredicates = notPredicates.concat(arg)
+      } else {
+        notPredicates = notPredicates.concat(arg)
       }
-    }, ``)})`
+    })
+    return {predicates: predicates, notPredicates: notPredicates}
   }
 
   return {
@@ -99,6 +107,11 @@
     },
     valid: function(name, value) {
       var spec = registry.getSpec(name)
+
+      registry.addPredicate(name, function(val) {
+        return argsToSExpr([val]) === spec.sExpression
+      })
+
       for (var predicate of spec.predicates) {
         if (!registry.getPredicate(predicate)(value)) return null
       }
@@ -107,7 +120,8 @@
     getSpec: function(name) {
       return registry.getSpec(name)
     },
+    debug: function() {
+      return parseApi
+    }
   }
 })()
-
-'((1:z)(1:a(1:b(1:c)))(1:b)))'
